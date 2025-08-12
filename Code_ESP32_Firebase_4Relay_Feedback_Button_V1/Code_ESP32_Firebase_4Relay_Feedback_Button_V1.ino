@@ -6,6 +6,7 @@
 #include <ESP8266WiFi.h>
 #include <FirebaseESP8266.h> // Mobizt's Firebase client for ESP8266
 #include <AceButton.h>
+#include "secrets.h"
 using namespace ace_button;
 
 // WiFi
@@ -13,10 +14,7 @@ const char* ssid = "amitkumarghosh.vercel.app";
 const char* password = "amit+kumar+4650";
 
 // Firebase
-#define API_KEY       "AIzaSyAfUcqCsJ1rUNrCV_lR6o6ZBwemiIJ6HGA"
-#define DATABASE_URL  "https://homeautomation-8c469-default-rtdb.firebaseio.com/"
-#define USER_EMAIL    "amit@gmail.com"
-#define USER_PASSWORD "amit1234"
+// loaded from secrets.h
 
 // Set this according to your relay module polarity:
 // true  -> active LOW (LOW = ON, HIGH = OFF)
