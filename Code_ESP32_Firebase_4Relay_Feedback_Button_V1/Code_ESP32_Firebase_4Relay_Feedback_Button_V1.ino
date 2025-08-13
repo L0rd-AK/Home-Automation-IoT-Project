@@ -11,8 +11,8 @@
 using namespace ace_button;
 
 // WiFi
-const char* ssid = "amitkumarghosh.vercel.app";
-const char* password = "amit+kumar+4650";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASS;
 
 // Firebase
 // loaded from secrets.h
