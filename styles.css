@@ -560,6 +560,232 @@ body {
   50% { transform: scale(1.5); opacity: 1; }
 }
 
+/* ===== Motor Control Styles ===== */
+.motor-control-container {
+  padding: 1.5rem;
+}
+
+.motor-status-card {
+  background: linear-gradient(135deg, var(--gray-50) 0%, white 100%);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  border: 2px solid var(--gray-100);
+  transition: all 0.3s ease;
+}
+
+.motor-status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-blue-light);
+}
+
+.motor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.motor-icon {
+  background: linear-gradient(135deg, var(--warning-orange-light) 0%, var(--warning-orange) 100%);
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  color: var(--warning-orange);
+  font-size: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.motor-info h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.motor-type {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+}
+
+.motor-status-badge {
+  padding: 0.25rem;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.motor-status-badge.active {
+  color: var(--success-green);
+  animation: pulse 2s infinite;
+}
+
+.motor-status-badge.inactive {
+  color: var(--danger-red);
+}
+
+.motor-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.control-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.toggle-switch, .direction-switch {
+  display: flex;
+}
+
+.toggle-btn, .direction-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  background: var(--gray-50);
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  width: 100%;
+  justify-content: center;
+}
+
+.toggle-btn:hover, .direction-btn:hover {
+  border-color: var(--primary-blue-light);
+  background: white;
+}
+
+.toggle-btn.on {
+  background: var(--success-green);
+  border-color: var(--success-green);
+  color: white;
+}
+
+.toggle-btn.off {
+  background: var(--danger-red);
+  border-color: var(--danger-red);
+  color: white;
+}
+
+.direction-btn.active {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: white;
+}
+
+.speed-control {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.speed-slider {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gray-200);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.speed-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-blue);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.3s ease;
+}
+
+.speed-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background: var(--primary-blue-dark);
+}
+
+.speed-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.speed-slider:disabled::-webkit-slider-thumb {
+  background: var(--gray-400);
+  cursor: not-allowed;
+}
+
+.speed-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  min-width: 60px;
+}
+
+.speed-display #speedValue {
+  font-size: 1.5rem;
+}
+
+.speed-unit {
+  font-size: 1rem;
+  color: var(--gray-600);
+}
+
+.speed-presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.preset-btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  background: var(--gray-50);
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.preset-btn:hover {
+  background: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* Motor icon spinning animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ===== Device Grid ===== */
 .device-grid {
   display: grid;
@@ -921,6 +1147,15 @@ body {
   .sensor-grid, .device-grid {
     grid-template-columns: 1fr;
     padding: 1rem;
+  }
+  
+  .control-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .speed-presets {
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .panel-header {

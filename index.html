@@ -101,7 +101,7 @@
       <div class="panel-header">
         <h2><i class="fas fa-satellite-dish"></i> Sensor Monitoring</h2>
         <div class="panel-actions">
-          <button class="refresh-btn" onclick="refreshSensors()">
+          <button title="Refresh Sensor Data" class="refresh-btn" onclick="refreshSensors()">
             <i class="fas fa-sync-alt"></i>
           </button>
         </div>
@@ -156,6 +156,138 @@
         </div>
       </div>
     </div>
+
+    <!-- Motor Control Panel -->
+    <!-- Motor Control Section -->
+<div class="control-panel">
+  <div class="panel-header">
+    <h2><i class="fas fa-fan"></i> DC Fan Control</h2>
+    <div class="panel-actions">
+      <button class="emergency-btn" onclick="emergencyStopMotor()">
+        <i class="fas fa-stop"></i> Emergency Stop
+      </button>
+    </div>
+  </div>
+  <div class="motor-control-container">
+    <div class="motor-status-card">
+      <div class="motor-header">
+        <div class="motor-icon">
+          <i class="fas fa-fan" id="motorIcon"></i>
+        </div>
+        <div class="motor-info">
+          <h3>DC Fan Motor</h3>
+          <p class="motor-type">L298N Driver</p>
+        </div>
+        <div class="motor-status-badge" id="motorStatus">
+          <i class="fas fa-circle"></i>
+        </div>
+      </div>
+      
+      <div class="motor-controls">
+        <div class="control-row">
+          <div class="control-group">
+            <label>Motor State</label>
+            <div class="toggle-switch">
+              <button class="toggle-btn off" id="motorToggle" onclick="toggleMotor()">
+                <i class="fas fa-power-off"></i>
+                <span>OFF</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="control-group">
+            <label>Direction</label>
+            <div class="direction-switch">
+              <button class="direction-btn active" id="forwardBtn" onclick="setMotorDirection(true)">
+                <i class="fas fa-arrow-up"></i>
+                <span>Forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="speed-control">
+          <label>Speed Control</label>
+          <div class="slider-container">
+            <input type="range" min="0" max="255" value="0" class="speed-slider" id="speedSlider" onchange="setMotorSpeed(this.value)" disabled>
+            <div class="speed-display">
+              <span id="speedValue">0</span>
+              <span class="speed-unit">%</span>
+            </div>
+          </div>
+          
+          <div class="speed-presets">
+            <button class="preset-btn" onclick="setSpeedPreset(25)">25%</button>
+            <button class="preset-btn" onclick="setSpeedPreset(50)">50%</button>
+            <button class="preset-btn" onclick="setSpeedPreset(75)">75%</button>
+            <button class="preset-btn" onclick="setSpeedPreset(100)">100%</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Temperature Sensor Section -->
+<div class="control-panel">
+  <div class="panel-header">
+    <h2><i class="fas fa-thermometer-half"></i> Temperature Monitoring</h2>
+  </div>
+  <div class="sensor-grid">
+    <div class="sensor-card">
+      <div class="sensor-header">
+        <div class="sensor-icon">
+          <i class="fas fa-thermometer-half"></i>
+        </div>
+        <div class="sensor-info">
+          <h3>Temperature Sensor</h3>
+          <p class="sensor-type">DHT11 Digital</p>
+        </div>
+        <div class="sensor-status-badge active" id="tempStatus">
+          <i class="fas fa-circle"></i>
+        </div>
+      </div>
+      
+      <div class="sensor-reading">
+        <span class="reading-value" id="tempValue">--</span>
+        <span class="reading-unit">°C</span>
+      </div>
+      
+      <p class="sensor-description">Monitors ambient temperature for automatic fan control</p>
+      
+      <div class="sensor-chart">
+        <div class="chart-bar" id="tempChart" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <div class="sensor-card">
+      <div class="sensor-header">
+        <div class="sensor-icon">
+          <i class="fas fa-tint"></i>
+        </div>
+        <div class="sensor-info">
+          <h3>Humidity Sensor</h3>
+          <p class="sensor-type">DHT11 Digital</p>
+        </div>
+        <div class="sensor-status-badge active" id="humidityStatus">
+          <i class="fas fa-circle"></i>
+        </div>
+      </div>
+      
+      <div class="sensor-reading">
+        <span class="reading-value" id="humidityValue">--</span>
+        <span class="reading-unit">%</span>
+      </div>
+      
+      <p class="sensor-description">Tracks relative humidity levels</p>
+      
+      <div class="sensor-chart">
+        <div class="chart-bar" id="humidityChart" style="width: 0%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
     <!-- Device Control Panel -->
     <div class="control-panel">
@@ -230,11 +362,11 @@
         <div class="device-card">
           <div class="device-header">
             <div class="device-icon">
-              <i class="fas fa-plug"></i>
+              <i class="fas fa-lightbulb"></i>
             </div>
             <div class="device-info">
-              <h3>Device 3</h3>
-              <span class="device-type">Manual Control</span>
+              <h3>Auto Light Device</h3>
+              <span class="device-type">LDR Controlled</span>
             </div>
             <div class="device-status" id="deviceStatus3">
               <i class="fas fa-circle"></i>
@@ -250,16 +382,20 @@
               Toggle
             </button>
           </div>
+          <div class="device-automation">
+            <i class="fas fa-sun"></i>
+            <span>Controlled by LDR when enabled</span>
+          </div>
         </div>
 
         <div class="device-card">
           <div class="device-header">
             <div class="device-icon">
-              <i class="fas fa-plug"></i>
+              <i class="fas fa-lightbulb"></i>
             </div>
             <div class="device-info">
-              <h3>Device 4</h3>
-              <span class="device-type">Manual Control</span>
+              <h3>Motion Light Device</h3>
+              <span class="device-type">PIR Controlled</span>
             </div>
             <div class="device-status" id="deviceStatus4">
               <i class="fas fa-circle"></i>
@@ -274,6 +410,10 @@
               <i class="fas fa-power-off"></i>
               Toggle
             </button>
+          </div>
+          <div class="device-automation">
+            <i class="fas fa-walking"></i>
+            <span>Controlled by PIR when enabled</span>
           </div>
         </div>
       </div>

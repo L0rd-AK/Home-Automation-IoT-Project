@@ -40,6 +40,13 @@ let currentSensorValues = {
   pir: false
 };
 
+// Current motor values
+let currentMotorValues = {
+  enabled: false,
+  speed: 0,
+  direction: true // true = forward, false = reverse
+};
+
 // Utility functions
 function showLoading() {
   if (loadingOverlay) {
@@ -242,24 +249,36 @@ function updateDeviceStatus(deviceId, status) {
   }
   
   // Update sensor status when relay states change
-  if (deviceId === 1) { // LDR Auto Light
+  if (deviceId === 1) { // LDR Auto Light Control
     const ldrValue = currentSensorValues.ldr;
     const isActive = ldrValue < 500; // Dark threshold
     updateSensorStatus('ldr', ldrValue, isActive);
     
     if (status) {
-      addNotification("LDR Auto Light enabled - Light sensor now monitoring ambient levels", "info", "Sensor Activation");
+      addNotification("LDR Auto Light ENABLED - Light sensor now controlling Auto Light Device", "info", "Automation Enabled");
     } else {
-      addNotification("LDR Auto Light disabled - Light sensor monitoring paused", "info", "Sensor Deactivation");
+      addNotification("LDR Auto Light DISABLED - Light sensor automation paused", "info", "Automation Disabled");
     }
-  } else if (deviceId === 2) { // Motion Light
+  } else if (deviceId === 2) { // Motion Light Control
     const pirValue = currentSensorValues.pir;
     updateSensorStatus('pir', pirValue, pirValue);
     
     if (status) {
-      addNotification("Motion Light enabled - PIR sensor now monitoring for movement", "info", "Sensor Activation");
+      addNotification("Motion Light ENABLED - PIR sensor now controlling Motion Light Device", "info", "Automation Enabled");
     } else {
-      addNotification("Motion Light disabled - PIR sensor monitoring paused", "info", "Sensor Deactivation");
+      addNotification("Motion Light DISABLED - PIR sensor automation paused", "info", "Automation Disabled");
+    }
+  } else if (deviceId === 3) { // Auto Light Device
+    if (status) {
+      addNotification("Auto Light Device turned ON manually", "info", "Manual Control");
+    } else {
+      addNotification("Auto Light Device turned OFF manually", "info", "Manual Control");
+    }
+  } else if (deviceId === 4) { // Motion Light Device
+    if (status) {
+      addNotification("Motion Light Device turned ON manually", "info", "Manual Control");
+    } else {
+      addNotification("Motion Light Device turned OFF manually", "info", "Manual Control");
     }
   }
   
@@ -341,6 +360,155 @@ function clearNotifications() {
   addNotification("Notification history cleared", "info", "Notifications");
 }
 
+// Motor control functions
+function updateMotorStatus(enabled, speed, direction) {
+  currentMotorValues.enabled = enabled;
+  currentMotorValues.speed = speed;
+  currentMotorValues.direction = direction;
+  
+  const motorIcon = document.getElementById("motorIcon");
+  const motorBadge = document.getElementById("motorStatusBadge");
+  const motorToggle = document.getElementById("motorToggle");
+  const motorToggleText = document.getElementById("motorToggleText");
+  const directionBtn = document.getElementById("motorDirection");
+  const directionText = document.getElementById("directionText");
+  const speedSlider = document.getElementById("speedSlider");
+  const speedValue = document.getElementById("speedValue");
+  
+  // Update motor icon animation
+  if (motorIcon) {
+    if (enabled && speed > 0) {
+      motorIcon.style.animation = 'spin 1s linear infinite';
+    } else {
+      motorIcon.style.animation = 'none';
+    }
+  }
+  
+  // Update status badge
+  if (motorBadge) {
+    motorBadge.className = enabled ? "motor-status-badge active" : "motor-status-badge inactive";
+  }
+  
+  // Update toggle button
+  if (motorToggle && motorToggleText) {
+    motorToggle.className = enabled ? "toggle-btn on" : "toggle-btn off";
+    motorToggleText.textContent = enabled ? "ON" : "OFF";
+  }
+  
+  // Update direction button
+  if (directionBtn && directionText) {
+    directionBtn.className = enabled ? "direction-btn active" : "direction-btn";
+    directionText.textContent = direction ? "Forward" : "Reverse";
+    const icon = directionBtn.querySelector('i');
+    if (icon) {
+      icon.className = direction ? "fas fa-arrow-right" : "fas fa-arrow-left";
+    }
+  }
+  
+  // Update speed slider and display
+  if (speedSlider) {
+    speedSlider.value = speed;
+    speedSlider.disabled = !enabled;
+  }
+  
+  if (speedValue) {
+    const percentage = Math.round((speed / 255) * 100);
+    speedValue.textContent = percentage;
+  }
+  
+  console.log(`Motor status updated: ${enabled ? 'ON' : 'OFF'}, Speed: ${speed}, Direction: ${direction ? 'Forward' : 'Reverse'}`);
+}
+
+function setMotorState(enabled) {
+  const db = firebase.database();
+  db.ref("/motor/enabled").set(enabled).then(() => {
+    addNotification(`DC Fan ${enabled ? 'turned ON' : 'turned OFF'}`, "info", "Motor Control");
+  }).catch(error => {
+    console.warn("Failed to set motor state:", error);
+    addNotification(`Failed to ${enabled ? 'start' : 'stop'} DC Fan`, "info", "Motor Control");
+  });
+}
+
+function setMotorSpeed(speed) {
+  const db = firebase.database();
+  const constrainedSpeed = Math.max(0, Math.min(255, speed));
+  
+  db.ref("/motor/speed").set(constrainedSpeed).then(() => {
+    const percentage = Math.round((constrainedSpeed / 255) * 100);
+    addNotification(`DC Fan speed set to ${percentage}%`, "info", "Motor Control");
+  }).catch(error => {
+    console.warn("Failed to set motor speed:", error);
+    addNotification("Failed to set DC Fan speed", "info", "Motor Control");
+  });
+}
+
+function setMotorDirection(forward) {
+  const db = firebase.database();
+  db.ref("/motor/direction").set(forward).then(() => {
+    addNotification(`DC Fan direction: ${forward ? 'Forward' : 'Reverse'}`, "info", "Motor Control");
+  }).catch(error => {
+    console.warn("Failed to set motor direction:", error);
+    addNotification("Failed to set DC Fan direction", "info", "Motor Control");
+  });
+}
+
+function initializeMotorControls() {
+  const motorToggle = document.getElementById("motorToggle");
+  const directionBtn = document.getElementById("motorDirection");
+  const speedSlider = document.getElementById("speedSlider");
+  const motorStopBtn = document.getElementById("motorStopBtn");
+  const presetBtns = document.querySelectorAll(".preset-btn");
+  
+  // Motor toggle button
+  if (motorToggle) {
+    motorToggle.onclick = () => {
+      const newState = !currentMotorValues.enabled;
+      setMotorState(newState);
+    };
+  }
+  
+  // Direction button
+  if (directionBtn) {
+    directionBtn.onclick = () => {
+      if (currentMotorValues.enabled) {
+        const newDirection = !currentMotorValues.direction;
+        setMotorDirection(newDirection);
+      }
+    };
+  }
+  
+  // Speed slider
+  if (speedSlider) {
+    speedSlider.oninput = (e) => {
+      const speed = parseInt(e.target.value);
+      setMotorSpeed(speed);
+    };
+  }
+  
+  // Emergency stop
+  if (motorStopBtn) {
+    motorStopBtn.onclick = () => {
+      setMotorState(false);
+      setMotorSpeed(0);
+      addNotification("Emergency stop activated - DC Fan stopped", "info", "Emergency Control");
+    };
+  }
+  
+  // Speed preset buttons
+  presetBtns.forEach(btn => {
+    btn.onclick = () => {
+      const speed = parseInt(btn.dataset.speed);
+      if (currentMotorValues.enabled) {
+        setMotorSpeed(speed);
+      } else {
+        // Turn on motor and set speed
+        setMotorState(true);
+        setTimeout(() => setMotorSpeed(speed), 100);
+      }
+    };
+  });
+}
+
 // Login functionality
 loginBtn.addEventListener("click", () => {
   const email = document.getElementById("email").value.trim();
@@ -387,12 +555,16 @@ loginBtn.addEventListener("click", () => {
 function initializeDashboard() {
   startRelayControl();
   startNotificationMonitoring();
+  initializeMotorControls();
   updateOverviewMetrics();
   
   // Initialize sensor status with conditional monitoring
   // Sensors start as disabled until their corresponding relays are turned on
   updateSensorStatus('ldr', 512, false);
   updateSensorStatus('pir', false, false);
+  
+  // Initialize motor status
+  updateMotorStatus(false, 0, true);
   
   // Force initial sensor data fetch after a short delay
   setTimeout(() => {
@@ -428,6 +600,21 @@ function initializeDashboard() {
     }).catch((error) => {
       console.warn("Failed to read initial PIR value:", error);
     });
+    
+    // Read initial motor values
+    db.ref("/motor").once("value").then((snapshot) => {
+      const motorData = snapshot.val();
+      if (motorData) {
+        const enabled = motorData.enabled || false;
+        const speed = motorData.speed || 0;
+        const direction = motorData.direction !== undefined ? motorData.direction : true;
+        
+        console.log("Initial motor values:", { enabled, speed, direction });
+        updateMotorStatus(enabled, speed, direction);
+      }
+    }).catch((error) => {
+      console.warn("Failed to read initial motor values:", error);
+    });
   }, 1000); // Wait 1 second for relay states to be loaded
 }
 
@@ -435,10 +622,10 @@ function startRelayControl() {
   const db = firebase.database();
 
   const relays = [
-    { id: 1, path: "relay1", name: "LDR Light" },
-    { id: 2, path: "relay2", name: "Motion Light" },
-    { id: 3, path: "relay3", name: "Device 3" },
-    { id: 4, path: "relay4", name: "Device 4" },
+    { id: 1, path: "relay1", name: "LDR Auto Light Control" },
+    { id: 2, path: "relay2", name: "Motion Light Control" },
+    { id: 3, path: "relay3", name: "Auto Light Device" },
+    { id: 4, path: "relay4", name: "Motion Light Device" },
   ];
 
   relays.forEach(relay => {
@@ -581,6 +768,278 @@ function startNotificationMonitoring() {
   }, (error) => {
     console.warn("Failed to read PIR sensor:", error);
   });
+  
+  // Monitor motor values
+  const motorEnabledRef = db.ref("/motor/enabled");
+  const motorSpeedRef = db.ref("/motor/speed");
+  const motorDirectionRef = db.ref("/motor/direction");
+  
+  motorEnabledRef.on("value", (snapshot) => {
+    const enabled = snapshot.val();
+    if (enabled !== null && enabled !== currentMotorValues.enabled) {
+      console.log("Motor enabled changed:", enabled);
+      updateMotorStatus(enabled, currentMotorValues.speed, currentMotorValues.direction);
+    }
+  }, (error) => {
+    console.warn("Failed to read motor enabled state:", error);
+  });
+  
+  motorSpeedRef.on("value", (snapshot) => {
+    const speed = snapshot.val();
+    if (speed !== null && speed !== currentMotorValues.speed) {
+      console.log("Motor speed changed:", speed);
+      updateMotorStatus(currentMotorValues.enabled, speed, currentMotorValues.direction);
+    }
+  }, (error) => {
+    console.warn("Failed to read motor speed:", error);
+  });
+  
+  motorDirectionRef.on("value", (snapshot) => {
+    const direction = snapshot.val();
+    if (direction !== null && direction !== currentMotorValues.direction) {
+      console.log("Motor direction changed:", direction);
+      updateMotorStatus(currentMotorValues.enabled, currentMotorValues.speed, direction);
+    }
+  }, (error) => {
+    console.warn("Failed to read motor direction:", error);
+  });
+}
+
+// Motor Control Functions
+function toggleMotor() {
+    const currentState = currentMotorValues.enabled;
+    const newState = !currentState;
+    
+    firebase.database().ref('/motor/enabled').set(newState)
+        .then(() => {
+            currentMotorValues.enabled = newState;
+            updateMotorUI();
+            
+            const message = newState ? 'DC Fan turned ON' : 'DC Fan turned OFF';
+            addNotification(message, 'info', 'Motor Control');
+            
+            console.log('Motor state updated:', newState);
+        })
+        .catch((error) => {
+            console.error('Error updating motor state:', error);
+            addNotification('Failed to update motor state', 'error', 'Motor Error');
+        });
+}
+
+function setMotorSpeed(speed) {
+    const speedValue = parseInt(speed);
+    const speedPercent = Math.round((speedValue / 255) * 100);
+    
+    firebase.database().ref('/motor/speed').set(speedValue)
+        .then(() => {
+            currentMotorValues.speed = speedValue;
+            document.getElementById('speedValue').textContent = speedPercent;
+            document.getElementById('speedSlider').value = speedValue;
+            
+            if (currentMotorValues.enabled) {
+                const message = `Motor speed set to ${speedPercent}%`;
+                addNotification(message, 'info', 'Motor Control');
+            }
+            
+            console.log('Motor speed updated:', speedPercent + '%');
+        })
+        .catch((error) => {
+            console.error('Error updating motor speed:', error);
+        });
+}
+
+function setMotorDirection(forward) {
+    firebase.database().ref('/motor/direction').set(forward)
+        .then(() => {
+            currentMotorValues.direction = forward;
+            updateMotorDirectionUI();
+            
+            const direction = forward ? 'Forward' : 'Reverse';
+            addNotification(`Motor direction set to ${direction}`, 'info', 'Motor Control');
+            
+            console.log('Motor direction updated:', direction);
+        })
+        .catch((error) => {
+            console.error('Error updating motor direction:', error);
+        });
+}
+
+function setSpeedPreset(percent) {
+    const speedValue = Math.round((percent / 100) * 255);
+    setMotorSpeed(speedValue);
+}
+
+function emergencyStopMotor() {
+    firebase.database().ref('/motor').update({
+        enabled: false,
+        speed: 0
+    })
+    .then(() => {
+        currentMotorValues.enabled = false;
+        currentMotorValues.speed = 0;
+        updateMotorUI();
+        
+        addNotification('EMERGENCY STOP: Motor turned OFF', 'error', 'Emergency');
+        console.log('Emergency stop activated');
+    })
+    .catch((error) => {
+        console.error('Error in emergency stop:', error);
+    });
+}
+
+function updateMotorUI() {
+    const motorToggle = document.getElementById('motorToggle');
+    const motorIcon = document.getElementById('motorIcon');
+    const motorStatus = document.getElementById('motorStatus');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    
+    if (motorToggle && motorIcon && motorStatus) {
+        if (currentMotorValues.enabled) {
+            motorToggle.className = 'toggle-btn on';
+            motorToggle.innerHTML = '<i class="fas fa-power-off"></i><span>ON</span>';
+            motorStatus.className = 'motor-status-badge active';
+            motorIcon.style.animation = 'spin 2s linear infinite';
+            speedSlider.disabled = false;
+        } else {
+            motorToggle.className = 'toggle-btn off';
+            motorToggle.innerHTML = '<i class="fas fa-power-off"></i><span>OFF</span>';
+            motorStatus.className = 'motor-status-badge inactive';
+            motorIcon.style.animation = 'none';
+            speedSlider.disabled = true;
+        }
+        
+        const speedPercent = Math.round((currentMotorValues.speed / 255) * 100);
+        speedValue.textContent = speedPercent;
+        speedSlider.value = currentMotorValues.speed;
+    }
+}
+
+function updateMotorDirectionUI() {
+    const forwardBtn = document.getElementById('forwardBtn');
+    
+    if (forwardBtn) {
+        if (currentMotorValues.direction) {
+            forwardBtn.className = 'direction-btn active';
+            forwardBtn.innerHTML = '<i class="fas fa-arrow-up"></i><span>Forward</span>';
+        } else {
+            forwardBtn.className = 'direction-btn active';
+            forwardBtn.innerHTML = '<i class="fas fa-arrow-down"></i><span>Reverse</span>';
+        }
+    }
+}
+
+// Temperature and Humidity Update Functions
+function updateTemperatureDisplay(temp, humidity) {
+    const tempValue = document.getElementById('tempValue');
+    const humidityValue = document.getElementById('humidityValue');
+    const tempChart = document.getElementById('tempChart');
+    const humidityChart = document.getElementById('humidityChart');
+    
+    if (tempValue && !isNaN(temp)) {
+        tempValue.textContent = temp.toFixed(1);
+        
+        // Update temperature chart (0-50°C range)
+        const tempPercent = Math.min((temp / 50) * 100, 100);
+        if (tempChart) {
+            tempChart.style.width = tempPercent + '%';
+            
+            // Color coding for temperature
+            if (temp > 35) {
+                tempChart.style.background = 'linear-gradient(135deg, #EF4444, #DC2626)';
+            } else if (temp > 28) {
+                tempChart.style.background = 'linear-gradient(135deg, #F59E0B, #D97706)';
+            } else {
+                tempChart.style.background = 'linear-gradient(135deg, #10B981, #059669)';
+            }
+        }
+        
+        // Temperature-based notifications
+        if (temp > 30 && !temperatureNotified) {
+            addNotification(`High temperature detected: ${temp.toFixed(1)}°C`, 'warning', 'Temperature Alert');
+            temperatureNotified = true;
+        } else if (temp <= 28) {
+            temperatureNotified = false;
+        }
+    }
+    
+    if (humidityValue && !isNaN(humidity)) {
+        humidityValue.textContent = humidity.toFixed(1);
+        
+        // Update humidity chart (0-100% range)
+        if (humidityChart) {
+            humidityChart.style.width = humidity + '%';
+        }
+    }
+}
+
+// Add to your existing Firebase listener
+let temperatureNotified = false;
+
+// Update your existing Firebase real-time listener to include motor and temperature data
+function startFirebaseListeners() {
+    // Motor state listener
+    firebase.database().ref('/motor').on('value', (snapshot) => {
+        const motorData = snapshot.val();
+        if (motorData) {
+            currentMotorValues.enabled = motorData.enabled || false;
+            currentMotorValues.speed = motorData.speed || 0;
+            currentMotorValues.direction = motorData.direction !== false; // default to true
+            updateMotorUI();
+            updateMotorDirectionUI();
+        }
+    });
+    
+    // Temperature and humidity listener
+    firebase.database().ref('/sensors').on('value', (snapshot) => {
+        const sensorData = snapshot.val();
+        if (sensorData) {
+            if (sensorData.temperature !== undefined && sensorData.humidity !== undefined) {
+                updateTemperatureDisplay(sensorData.temperature, sensorData.humidity);
+            }
+            
+            // Update existing sensor displays
+            if (sensorData.ldr !== undefined) {
+                updateLDRDisplay(sensorData.ldr);
+            }
+            
+            if (sensorData.pir !== undefined) {
+                updatePIRDisplay(sensorData.pir);
+            }
+        }
+    });
+    
+    // Automation state listeners for persistent button states
+    firebase.database().ref('/automation/ldrAutoLight').on('value', (snapshot) => {
+        const enabled = snapshot.val();
+        if (enabled !== null) {
+            ldrAutoLightEnabled = enabled;
+            updateAutomationButtonUI('ldrAutoLight', enabled);
+        }
+    });
+    
+    firebase.database().ref('/automation/motionLight').on('value', (snapshot) => {
+        const enabled = snapshot.val();
+        if (enabled !== null) {
+            motionLightEnabled = enabled;
+            updateAutomationButtonUI('motionLight', enabled);
+        }
+    });
+}
+
+// Call this function after Firebase initialization
+function initializeSystem() {
+    // Initialize motor UI
+    updateMotorUI();
+    updateMotorDirectionUI();
+    
+    // Start all Firebase listeners
+    startFirebaseListeners();
+    
+    // Add welcome notification
+    addNotification('Smart Home System with Temperature Control initialized successfully!', 'welcome', 'System Ready');
+    
+    hideLoading();
 }
 
 // Logout functionality
@@ -624,3 +1083,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Make functions globally available for HTML onclick events
 window.refreshSensors = refreshSensors;
 window.clearNotifications = clearNotifications;
+
