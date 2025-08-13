@@ -1,6 +1,7 @@
 /*
   ESP8266 4-Relay with Firebase RTDB (Mobizt) + AceButton
   Added RELAY_ACTIVE_LOW flag so behavior can be inverted easily.
+  Added LDR and PIR sensors for automatic light control and notifications.
 */
 
 #include <ESP8266WiFi.h>
@@ -32,6 +33,21 @@ const char* password = "amit+kumar+4650";
 #define SwitchPin2 16  // D0
 #define SwitchPin3 3   // RX (GPIO3) - avoid pressing while flashing/serial active
 #define SwitchPin4 1   // TX (GPIO1) - avoid pressing while flashing/serial active
+
+// Sensor pins
+#define LDR_PIN A0     // Analog pin for LDR sensor
+#define PIR_PIN 15     // D8 (GPIO15) for PIR motion sensor
+
+// Sensor thresholds and timing
+#define LDR_DARK_THRESHOLD 500    // LDR value below this = dark (adjust based on your sensor)
+#define PIR_DELAY 5000           // Delay before turning off motion light (5 seconds)
+#define SENSOR_CHECK_INTERVAL 1000 // Check sensors every 1 second
+
+// Sensor states
+bool lastLDRDark = false;
+bool lastPIRMotion = false;
+unsigned long lastMotionTime = 0;
+bool motionLightOn = false;
 
 // Firebase objects
 FirebaseData fbdo;
@@ -69,6 +85,81 @@ void setRelayValueFirebase(const char* path, bool value) {
   }
 }
 
+// Firebase notification helper
+void sendNotification(const char* message) {
+  if (!Firebase.setString(fbdo, "/notifications/latest", message)) {
+    Serial.print("Failed to send notification: ");
+    Serial.println(fbdo.errorReason());
+  }
+  
+  // Also set timestamp
+  if (!Firebase.setInt(fbdo, "/notifications/timestamp", millis())) {
+    Serial.print("Failed to set timestamp: ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
+// Check LDR sensor and control light
+void checkLDR() {
+  int ldrValue = analogRead(LDR_PIN);
+  bool isDark = (ldrValue < LDR_DARK_THRESHOLD);
+  
+  // Only act if state changed
+  if (isDark != lastLDRDark) {
+    lastLDRDark = isDark;
+    
+    if (isDark) {
+      // Turn on light when dark
+      writeRelay(RELAY1, true);
+      setRelayValueFirebase("/relay1", true);
+      sendNotification("Dark detected! Light turned ON automatically.");
+      Serial.println("Dark detected - Light ON");
+    } else {
+      // Turn off light when bright (unless motion light is active)
+      if (!motionLightOn) {
+        writeRelay(RELAY1, false);
+        setRelayValueFirebase("/relay1", false);
+        sendNotification("Light conditions improved. Light turned OFF automatically.");
+        Serial.println("Bright detected - Light OFF");
+      }
+    }
+  }
+}
+
+// Check PIR sensor and control motion light
+void checkPIR() {
+  bool motionDetected = (digitalRead(PIR_PIN) == HIGH);
+  
+  // Only act if state changed
+  if (motionDetected != lastPIRMotion) {
+    lastPIRMotion = motionDetected;
+    
+    if (motionDetected) {
+      // Motion detected - turn on light
+      writeRelay(RELAY2, true);
+      setRelayValueFirebase("/relay2", true);
+      motionLightOn = true;
+      lastMotionTime = millis();
+      sendNotification("Motion detected! Motion light turned ON.");
+      Serial.println("Motion detected - Motion Light ON");
+    } else {
+      // No motion - start timer to turn off light
+      lastMotionTime = millis();
+    }
+  }
+  
+  // Check if motion light should be turned off
+  if (motionLightOn && !motionDetected) {
+    if (millis() - lastMotionTime > PIR_DELAY) {
+      writeRelay(RELAY2, false);
+      setRelayValueFirebase("/relay2", false);
+      motionLightOn = false;
+      sendNotification("No motion detected. Motion light turned OFF.");
+      Serial.println("No motion - Motion Light OFF");
+    }
+  }
+}
+
 // Button event handler
 void handleEvent(AceButton* button, uint8_t eventType, uint8_t /*state*/) {
   if (eventType != AceButton::kEventReleased) return;
@@ -85,6 +176,8 @@ void handleEvent(AceButton* button, uint8_t eventType, uint8_t /*state*/) {
     newState = !currentState;
     writeRelay(RELAY2, newState);
     setRelayValueFirebase("/relay2", newState);
+    // Reset motion light state if manually turned off
+    if (!newState) motionLightOn = false;
   } else if (pin == SwitchPin3) {
     currentState = readRelayState(RELAY3);
     newState = !currentState;
@@ -113,6 +206,10 @@ void setup() {
   pinMode(SwitchPin3, INPUT_PULLUP);
   pinMode(SwitchPin4, INPUT_PULLUP);
 
+  // Sensors
+  pinMode(PIR_PIN, INPUT);
+  // LDR uses analog pin A0, no pinMode needed
+
   // Attach AceButton handlers
   button1.getButtonConfig()->setEventHandler(handleEvent);
   button2.getButtonConfig()->setEventHandler(handleEvent);
@@ -137,10 +234,17 @@ void setup() {
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
+  // Initialize sensor states
+  lastLDRDark = (analogRead(LDR_PIN) < LDR_DARK_THRESHOLD);
+  lastPIRMotion = (digitalRead(PIR_PIN) == HIGH);
+
   Serial.println("Setup complete.");
+  Serial.println("LDR and PIR sensors initialized.");
 }
 
 void loop() {
+  static unsigned long lastSensorCheck = 0;
+  
   // Read Firebase desired states and apply physically
   bool v;
   if (Firebase.getBool(fbdo, "/relay1")) {
@@ -158,6 +262,13 @@ void loop() {
   if (Firebase.getBool(fbdo, "/relay4")) {
     v = fbdo.boolData();
     writeRelay(RELAY4, v);
+  }
+
+  // Check sensors periodically
+  if (millis() - lastSensorCheck >= SENSOR_CHECK_INTERVAL) {
+    checkLDR();
+    checkPIR();
+    lastSensorCheck = millis();
   }
 
   // Buttons
