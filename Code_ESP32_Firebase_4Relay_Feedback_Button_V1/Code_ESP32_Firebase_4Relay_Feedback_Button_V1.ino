@@ -103,15 +103,31 @@ void sendNotification(const char* message) {
   }
 }
 
+// Publish current sensor values to Firebase (for web interface display)
+void publishSensorData() {
+  int ldrValue = analogRead(LDR_PIN);
+  bool pirValue = (digitalRead(PIR_PIN) == HIGH);
+  
+  // Always publish current sensor values for display purposes
+  if (!Firebase.setInt(fbdo, "/sensors/ldr", ldrValue)) {
+    Serial.print("Failed to publish LDR value: ");
+    Serial.println(fbdo.errorReason());
+  }
+  
+  if (!Firebase.setBool(fbdo, "/sensors/pir", pirValue)) {
+    Serial.print("Failed to publish PIR value: ");
+    Serial.println(fbdo.errorReason());
+  }
+  
+  Serial.print("Sensor data published - LDR: ");
+  Serial.print(ldrValue);
+  Serial.print(", PIR: ");
+  Serial.println(pirValue ? "Motion" : "Clear");
+}
+
 // Check LDR sensor and control light
 void checkLDR() {
   int ldrValue = analogRead(LDR_PIN);
-  
-  // Always publish LDR value to Firebase for display
-  if (!Firebase.setInt(fbdo, "/sensors/ldr", ldrValue)) {
-    Serial.print("Failed to set LDR value: ");
-    Serial.println(fbdo.errorReason());
-  }
   
   // Only perform automatic light control if LDR Auto Light is enabled
   if (!ldrAutoLightEnabled) {
@@ -149,12 +165,6 @@ void checkLDR() {
 // Check PIR sensor and control motion light
 void checkPIR() {
   bool motionDetected = (digitalRead(PIR_PIN) == HIGH);
-  
-  // Always publish PIR state to Firebase for display
-  if (!Firebase.setBool(fbdo, "/sensors/pir", motionDetected)) {
-    Serial.print("Failed to set PIR value: ");
-    Serial.println(fbdo.errorReason());
-  }
   
   // Only perform automatic motion control if Motion Light is enabled
   if (!motionLightEnabled) {
@@ -281,6 +291,26 @@ void setup() {
     motionLightEnabled = fbdo.boolData();
   }
 
+  // Publish initial sensor values to Firebase
+  int initialLdrValue = analogRead(LDR_PIN);
+  bool initialPirValue = (digitalRead(PIR_PIN) == HIGH);
+  
+  if (!Firebase.setInt(fbdo, "/sensors/ldr", initialLdrValue)) {
+    Serial.print("Failed to set initial LDR value: ");
+    Serial.println(fbdo.errorReason());
+  } else {
+    Serial.print("Initial LDR value published: ");
+    Serial.println(initialLdrValue);
+  }
+  
+  if (!Firebase.setBool(fbdo, "/sensors/pir", initialPirValue)) {
+    Serial.print("Failed to set initial PIR value: ");
+    Serial.println(fbdo.errorReason());
+  } else {
+    Serial.print("Initial PIR value published: ");
+    Serial.println(initialPirValue ? "Motion" : "Clear");
+  }
+
   Serial.println("Setup complete.");
   Serial.println("LDR and PIR sensors initialized.");
   Serial.print("LDR Auto Light enabled: ");
@@ -291,6 +321,8 @@ void setup() {
 
 void loop() {
   static unsigned long lastSensorCheck = 0;
+  static unsigned long lastSensorPublish = 0;
+  const unsigned long SENSOR_PUBLISH_INTERVAL = 5000; // Publish sensor data every 5 seconds
   
   // Read Firebase desired states and apply physically
   bool v;
@@ -315,11 +347,17 @@ void loop() {
     writeRelay(RELAY4, v);
   }
 
-  // Check sensors periodically
+  // Check sensors periodically for automation
   if (millis() - lastSensorCheck >= SENSOR_CHECK_INTERVAL) {
     checkLDR();
     checkPIR();
     lastSensorCheck = millis();
+  }
+  
+  // Publish sensor data periodically for web interface display
+  if (millis() - lastSensorPublish >= SENSOR_PUBLISH_INTERVAL) {
+    publishSensorData();
+    lastSensorPublish = millis();
   }
 
   // Buttons

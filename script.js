@@ -115,6 +115,8 @@ function updateSensorStatus(sensorType, value, isActive) {
   // Store current sensor values
   currentSensorValues[sensorType] = value;
   
+  console.log(`Updating ${sensorType} sensor: value=${value}, active=${isActive}`);
+  
   if (sensorType === 'ldr') {
     const ldrCard = document.getElementById("ldrSensorCard");
     const ldrBadge = document.getElementById("ldrStatusBadge");
@@ -125,7 +127,9 @@ function updateSensorStatus(sensorType, value, isActive) {
     // Check if LDR Auto Light (relay1) is enabled for conditional monitoring
     const isLdrEnabled = relayStates.relay1;
     
-    if (ldrValue) ldrValue.textContent = value;
+    if (ldrValue) {
+      ldrValue.textContent = value !== null && value !== undefined ? value : '--';
+    }
     
     if (ldrBadge) {
       if (!isLdrEnabled) {
@@ -170,7 +174,13 @@ function updateSensorStatus(sensorType, value, isActive) {
     // Check if Motion Light (relay2) is enabled for conditional monitoring
     const isPirEnabled = relayStates.relay2;
     
-    if (pirValue) pirValue.textContent = isPirEnabled ? (isActive ? "Motion" : "Clear") : "Disabled";
+    if (pirValue) {
+      if (value === null || value === undefined) {
+        pirValue.textContent = "--";
+      } else {
+        pirValue.textContent = isPirEnabled ? (value ? "Motion" : "Clear") : "Disabled";
+      }
+    }
     
     if (pirBadge) {
       if (!isPirEnabled) {
@@ -277,22 +287,43 @@ function refreshSensors() {
     }, 1000);
   }
   
-  // Refresh sensor displays based on current states and relay conditions
-  const ldrValue = currentSensorValues.ldr;
-  const pirValue = currentSensorValues.pir;
+  // Force refresh sensor data from Firebase
+  const db = firebase.database();
   
-  if (relayStates.relay1) {
-    const isLdrActive = ldrValue < 500;
-    updateSensorStatus('ldr', ldrValue, isLdrActive);
-  } else {
-    updateSensorStatus('ldr', ldrValue, false);
-  }
+  // Read current LDR value
+  db.ref("/sensors/ldr").once("value").then((snapshot) => {
+    const ldrValue = snapshot.val();
+    if (ldrValue !== null) {
+      currentSensorValues.ldr = ldrValue;
+      console.log("Refreshed LDR value:", ldrValue);
+      
+      if (relayStates.relay1) {
+        const isLdrActive = ldrValue < 500;
+        updateSensorStatus('ldr', ldrValue, isLdrActive);
+      } else {
+        updateSensorStatus('ldr', ldrValue, false);
+      }
+    }
+  }).catch((error) => {
+    console.warn("Failed to refresh LDR value:", error);
+  });
   
-  if (relayStates.relay2) {
-    updateSensorStatus('pir', pirValue, pirValue);
-  } else {
-    updateSensorStatus('pir', pirValue, false);
-  }
+  // Read current PIR value
+  db.ref("/sensors/pir").once("value").then((snapshot) => {
+    const pirValue = snapshot.val();
+    if (pirValue !== null) {
+      currentSensorValues.pir = pirValue;
+      console.log("Refreshed PIR value:", pirValue);
+      
+      if (relayStates.relay2) {
+        updateSensorStatus('pir', pirValue, pirValue);
+      } else {
+        updateSensorStatus('pir', pirValue, false);
+      }
+    }
+  }).catch((error) => {
+    console.warn("Failed to refresh PIR value:", error);
+  });
   
   addNotification("Sensor data refreshed - Status updated based on current relay states", "info", "Refresh Complete");
 }
@@ -362,6 +393,42 @@ function initializeDashboard() {
   // Sensors start as disabled until their corresponding relays are turned on
   updateSensorStatus('ldr', 512, false);
   updateSensorStatus('pir', false, false);
+  
+  // Force initial sensor data fetch after a short delay
+  setTimeout(() => {
+    const db = firebase.database();
+    
+    // Read initial LDR value
+    db.ref("/sensors/ldr").once("value").then((snapshot) => {
+      const ldrValue = snapshot.val();
+      if (ldrValue !== null) {
+        currentSensorValues.ldr = ldrValue;
+        console.log("Initial LDR value:", ldrValue);
+        
+        // Update display based on current relay state
+        const isLdrEnabled = relayStates.relay1;
+        const isActive = ldrValue < 500;
+        updateSensorStatus('ldr', ldrValue, isLdrEnabled ? isActive : false);
+      }
+    }).catch((error) => {
+      console.warn("Failed to read initial LDR value:", error);
+    });
+    
+    // Read initial PIR value
+    db.ref("/sensors/pir").once("value").then((snapshot) => {
+      const pirValue = snapshot.val();
+      if (pirValue !== null) {
+        currentSensorValues.pir = pirValue;
+        console.log("Initial PIR value:", pirValue);
+        
+        // Update display based on current relay state
+        const isPirEnabled = relayStates.relay2;
+        updateSensorStatus('pir', pirValue, isPirEnabled ? pirValue : false);
+      }
+    }).catch((error) => {
+      console.warn("Failed to read initial PIR value:", error);
+    });
+  }, 1000); // Wait 1 second for relay states to be loaded
 }
 
 function startRelayControl() {
@@ -466,6 +533,8 @@ function startNotificationMonitoring() {
   
   ldrRef.on("value", (snapshot) => {
     const ldrValue = snapshot.val();
+    console.log("LDR value received from Firebase:", ldrValue);
+    
     if (ldrValue !== null) {
       currentSensorValues.ldr = ldrValue;
       // Only process LDR if relay1 (LDR Auto Light) is enabled
@@ -490,6 +559,8 @@ function startNotificationMonitoring() {
   
   pirRef.on("value", (snapshot) => {
     const pirValue = snapshot.val();
+    console.log("PIR value received from Firebase:", pirValue);
+    
     if (pirValue !== null) {
       currentSensorValues.pir = pirValue;
       // Only process PIR if relay2 (Motion Light) is enabled
