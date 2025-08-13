@@ -362,8 +362,8 @@ body {
 }
 
 .refresh-btn, .clear-btn {
-  background: var(--primary-blue);
-  color: white;
+  background: var(--primary-gray);
+  color: red;
   border: none;
   padding: 0.5rem;
   border-radius: var(--border-radius);
