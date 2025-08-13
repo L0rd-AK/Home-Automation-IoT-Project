@@ -413,6 +413,29 @@ body {
   overflow: hidden;
 }
 
+.sensor-card.disabled {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+  border-color: var(--gray-300);
+}
+
+.sensor-card.disabled .sensor-icon {
+  background: linear-gradient(135deg, var(--gray-200) 0%, var(--gray-400) 100%);
+  color: var(--gray-500);
+}
+
+.sensor-card.disabled .sensor-status-badge {
+  color: var(--gray-400);
+}
+
+.sensor-card.disabled .chart-bar {
+  background: linear-gradient(135deg, var(--gray-200) 0%, var(--gray-400) 100%);
+}
+
+.sensor-card.disabled .motion-wave {
+  background: var(--gray-400);
+}
+
 .sensor-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);

@@ -276,7 +276,25 @@ function refreshSensors() {
       refreshBtn.style.animation = '';
     }, 1000);
   }
-  addNotification("Sensor data refreshed successfully", "info", "Refresh Complete");
+  
+  // Refresh sensor displays based on current states and relay conditions
+  const ldrValue = currentSensorValues.ldr;
+  const pirValue = currentSensorValues.pir;
+  
+  if (relayStates.relay1) {
+    const isLdrActive = ldrValue < 500;
+    updateSensorStatus('ldr', ldrValue, isLdrActive);
+  } else {
+    updateSensorStatus('ldr', ldrValue, false);
+  }
+  
+  if (relayStates.relay2) {
+    updateSensorStatus('pir', pirValue, pirValue);
+  } else {
+    updateSensorStatus('pir', pirValue, false);
+  }
+  
+  addNotification("Sensor data refreshed - Status updated based on current relay states", "info", "Refresh Complete");
 }
 
 function clearNotifications() {
@@ -442,15 +460,29 @@ function startNotificationMonitoring() {
     console.warn("Failed to monitor notifications:", error);
   });
   
-  // Monitor sensor values
+  // Monitor sensor values with conditional monitoring
   const ldrRef = db.ref("/sensors/ldr");
   const pirRef = db.ref("/sensors/pir");
   
   ldrRef.on("value", (snapshot) => {
     const ldrValue = snapshot.val();
     if (ldrValue !== null) {
-      const isActive = ldrValue < 500; // Dark threshold
-      updateSensorStatus('ldr', ldrValue, isActive);
+      currentSensorValues.ldr = ldrValue;
+      // Only process LDR if relay1 (LDR Auto Light) is enabled
+      if (relayStates.relay1) {
+        const isActive = ldrValue < 500; // Dark threshold
+        updateSensorStatus('ldr', ldrValue, isActive);
+        
+        // Send notification for significant changes
+        if (isActive && ldrValue < 300) {
+          addNotification(`Very dark detected (${ldrValue}) - Auto light activated`, "dark", "Light Sensor");
+        } else if (!isActive && ldrValue > 700) {
+          addNotification(`Bright light detected (${ldrValue}) - Auto light deactivated`, "dark", "Light Sensor");
+        }
+      } else {
+        // Update display but show as disabled
+        updateSensorStatus('ldr', ldrValue, false);
+      }
     }
   }, (error) => {
     console.warn("Failed to read LDR sensor:", error);
@@ -459,7 +491,21 @@ function startNotificationMonitoring() {
   pirRef.on("value", (snapshot) => {
     const pirValue = snapshot.val();
     if (pirValue !== null) {
-      updateSensorStatus('pir', pirValue, pirValue);
+      currentSensorValues.pir = pirValue;
+      // Only process PIR if relay2 (Motion Light) is enabled
+      if (relayStates.relay2) {
+        updateSensorStatus('pir', pirValue, pirValue);
+        
+        // Send notification for motion detection
+        if (pirValue) {
+          addNotification("Motion detected - Auto light activated", "motion", "Motion Sensor");
+        } else {
+          addNotification("Motion cleared - Auto light will turn off after delay", "motion", "Motion Sensor");
+        }
+      } else {
+        // Update display but show as disabled
+        updateSensorStatus('pir', pirValue, false);
+      }
     }
   }, (error) => {
     console.warn("Failed to read PIR sensor:", error);
