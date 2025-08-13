@@ -11,8 +11,8 @@
 using namespace ace_button;
 
 // WiFi
-const char* ssid = "amitkumarghosh.vercel.app";
-const char* password = "amit+kumar+4650";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASS;
 
 // Firebase
 // loaded from secrets.h
@@ -48,6 +48,10 @@ bool lastLDRDark = false;
 bool lastPIRMotion = false;
 unsigned long lastMotionTime = 0;
 bool motionLightOn = false;
+
+// Control flags for conditional sensor monitoring
+bool ldrAutoLightEnabled = false;  // Controlled by relay1 state from Firebase
+bool motionLightEnabled = false;   // Controlled by relay2 state from Firebase
 
 // Firebase objects
 FirebaseData fbdo;
@@ -99,9 +103,37 @@ void sendNotification(const char* message) {
   }
 }
 
+// Publish current sensor values to Firebase (for web interface display)
+void publishSensorData() {
+  int ldrValue = analogRead(LDR_PIN);
+  bool pirValue = (digitalRead(PIR_PIN) == HIGH);
+  
+  // Always publish current sensor values for display purposes
+  if (!Firebase.setInt(fbdo, "/sensors/ldr", ldrValue)) {
+    Serial.print("Failed to publish LDR value: ");
+    Serial.println(fbdo.errorReason());
+  }
+  
+  if (!Firebase.setBool(fbdo, "/sensors/pir", pirValue)) {
+    Serial.print("Failed to publish PIR value: ");
+    Serial.println(fbdo.errorReason());
+  }
+  
+  Serial.print("Sensor data published - LDR: ");
+  Serial.print(ldrValue);
+  Serial.print(", PIR: ");
+  Serial.println(pirValue ? "Motion" : "Clear");
+}
+
 // Check LDR sensor and control light
 void checkLDR() {
   int ldrValue = analogRead(LDR_PIN);
+  
+  // Only perform automatic light control if LDR Auto Light is enabled
+  if (!ldrAutoLightEnabled) {
+    return;
+  }
+  
   bool isDark = (ldrValue < LDR_DARK_THRESHOLD);
   
   // Only act if state changed
@@ -113,14 +145,18 @@ void checkLDR() {
       writeRelay(RELAY1, true);
       setRelayValueFirebase("/relay1", true);
       sendNotification("Dark detected! Light turned ON automatically.");
-      Serial.println("Dark detected - Light ON");
+      Serial.print("Dark detected (LDR: ");
+      Serial.print(ldrValue);
+      Serial.println(") - Light ON");
     } else {
       // Turn off light when bright (unless motion light is active)
       if (!motionLightOn) {
         writeRelay(RELAY1, false);
         setRelayValueFirebase("/relay1", false);
         sendNotification("Light conditions improved. Light turned OFF automatically.");
-        Serial.println("Bright detected - Light OFF");
+        Serial.print("Bright detected (LDR: ");
+        Serial.print(ldrValue);
+        Serial.println(") - Light OFF");
       }
     }
   }
@@ -129,6 +165,11 @@ void checkLDR() {
 // Check PIR sensor and control motion light
 void checkPIR() {
   bool motionDetected = (digitalRead(PIR_PIN) == HIGH);
+  
+  // Only perform automatic motion control if Motion Light is enabled
+  if (!motionLightEnabled) {
+    return;
+  }
   
   // Only act if state changed
   if (motionDetected != lastPIRMotion) {
@@ -171,11 +212,15 @@ void handleEvent(AceButton* button, uint8_t eventType, uint8_t /*state*/) {
     newState = !currentState;
     writeRelay(RELAY1, newState);
     setRelayValueFirebase("/relay1", newState);
+    // Update LDR Auto Light control flag
+    ldrAutoLightEnabled = newState;
   } else if (pin == SwitchPin2) {
     currentState = readRelayState(RELAY2);
     newState = !currentState;
     writeRelay(RELAY2, newState);
     setRelayValueFirebase("/relay2", newState);
+    // Update Motion Light control flag
+    motionLightEnabled = newState;
     // Reset motion light state if manually turned off
     if (!newState) motionLightOn = false;
   } else if (pin == SwitchPin3) {
@@ -237,23 +282,61 @@ void setup() {
   // Initialize sensor states
   lastLDRDark = (analogRead(LDR_PIN) < LDR_DARK_THRESHOLD);
   lastPIRMotion = (digitalRead(PIR_PIN) == HIGH);
+  
+  // Initialize control flags from Firebase
+  if (Firebase.getBool(fbdo, "/relay1")) {
+    ldrAutoLightEnabled = fbdo.boolData();
+  }
+  if (Firebase.getBool(fbdo, "/relay2")) {
+    motionLightEnabled = fbdo.boolData();
+  }
+
+  // Publish initial sensor values to Firebase
+  int initialLdrValue = analogRead(LDR_PIN);
+  bool initialPirValue = (digitalRead(PIR_PIN) == HIGH);
+  
+  if (!Firebase.setInt(fbdo, "/sensors/ldr", initialLdrValue)) {
+    Serial.print("Failed to set initial LDR value: ");
+    Serial.println(fbdo.errorReason());
+  } else {
+    Serial.print("Initial LDR value published: ");
+    Serial.println(initialLdrValue);
+  }
+  
+  if (!Firebase.setBool(fbdo, "/sensors/pir", initialPirValue)) {
+    Serial.print("Failed to set initial PIR value: ");
+    Serial.println(fbdo.errorReason());
+  } else {
+    Serial.print("Initial PIR value published: ");
+    Serial.println(initialPirValue ? "Motion" : "Clear");
+  }
 
   Serial.println("Setup complete.");
   Serial.println("LDR and PIR sensors initialized.");
+  Serial.print("LDR Auto Light enabled: ");
+  Serial.println(ldrAutoLightEnabled ? "YES" : "NO");
+  Serial.print("Motion Light enabled: ");
+  Serial.println(motionLightEnabled ? "YES" : "NO");
 }
 
 void loop() {
   static unsigned long lastSensorCheck = 0;
+  static unsigned long lastSensorPublish = 0;
+  const unsigned long SENSOR_PUBLISH_INTERVAL = 5000; // Publish sensor data every 5 seconds
   
   // Read Firebase desired states and apply physically
   bool v;
   if (Firebase.getBool(fbdo, "/relay1")) {
     v = fbdo.boolData();
     writeRelay(RELAY1, v);
+    // Update LDR Auto Light control flag
+    ldrAutoLightEnabled = v;
   }
   if (Firebase.getBool(fbdo, "/relay2")) {
     v = fbdo.boolData();
     writeRelay(RELAY2, v);
+    // Update Motion Light control flag
+    motionLightEnabled = v;
   }
   if (Firebase.getBool(fbdo, "/relay3")) {
     v = fbdo.boolData();
@@ -264,11 +347,17 @@ void loop() {
     writeRelay(RELAY4, v);
   }
 
-  // Check sensors periodically
+  // Check sensors periodically for automation
   if (millis() - lastSensorCheck >= SENSOR_CHECK_INTERVAL) {
     checkLDR();
     checkPIR();
     lastSensorCheck = millis();
+  }
+  
+  // Publish sensor data periodically for web interface display
+  if (millis() - lastSensorPublish >= SENSOR_PUBLISH_INTERVAL) {
+    publishSensorData();
+    lastSensorPublish = millis();
   }
 
   // Buttons

@@ -1,83 +1,342 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Home Automation</title>
+  <title>Smart Home Automation System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
 
-  <h1>Smart Home Automation</h1>
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo-section">
+        <i class="fas fa-home"></i>
+        <h1>Smart Home Hub</h1>
+      </div>
+      <div class="connection-status" id="connectionStatus">
+        <i class="fas fa-wifi"></i>
+        <span>Connected</span>
+      </div>
+    </div>
+  </header>
 
   <!-- Login form -->
-  <div id="loginForm">
-    <input type="email" id="email" placeholder="Enter Email" required />
-    <input type="password" id="password" placeholder="Enter Password" required />
-    <button id="loginBtn">Login</button>
+  <div id="loginForm" class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <i class="fas fa-shield-alt"></i>
+        <h2>Secure Access</h2>
+        <p>Enter your credentials to access the control panel</p>
+      </div>
+      <form class="login-form">
+        <div class="input-group">
+          <i class="fas fa-envelope"></i>
+          <input type="email" id="email" placeholder="Email Address" required />
+        </div>
+        <div class="input-group">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" placeholder="Password" required />
+        </div>
+        <button type="button" id="loginBtn" class="login-btn">
+          <i class="fas fa-sign-in-alt"></i>
+          Sign In
+        </button>
+      </form>
+      <div class="demo-credentials">
+        <small><i class="fas fa-info-circle"></i> Demo: amit@gmail.com / amit1234</small>
+      </div>
+    </div>
   </div>
 
   <!-- Dashboard -->
-  <div id="dashboard">
-    <!-- Sensor Status Panel -->
-    <div class="notification-panel">
-      <h3>📡 Sensor Status</h3>
-      <div class="sensor-status">
-        <div class="sensor-indicator" id="ldrStatus">
-          <strong>LDR Sensor</strong><br>
-          <span id="ldrValue">Loading...</span>
+  <div id="dashboard" class="dashboard">
+    <!-- System Overview -->
+    <div class="overview-grid">
+      <div class="overview-card">
+        <div class="card-icon">
+          <i class="fas fa-lightbulb"></i>
         </div>
-        <div class="sensor-indicator" id="pirStatus">
-          <strong>PIR Sensor</strong><br>
-          <span id="pirValue">Loading...</span>
+        <div class="card-content">
+          <h3>Active Devices</h3>
+          <div class="metric" id="activeDevices">2</div>
+        </div>
+      </div>
+      <div class="overview-card">
+        <div class="card-icon">
+          <i class="fas fa-eye"></i>
+        </div>
+        <div class="card-content">
+          <h3>Sensors Online</h3>
+          <div class="metric" id="sensorsOnline">2</div>
+        </div>
+      </div>
+      <div class="overview-card">
+        <div class="card-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="card-content">
+          <h3>Last Activity</h3>
+          <div class="metric-small" id="lastActivity">Just now</div>
+        </div>
+      </div>
+      <div class="overview-card">
+        <div class="card-icon">
+          <i class="fas fa-thermometer-half"></i>
+        </div>
+        <div class="card-content">
+          <h3>System Health</h3>
+          <div class="metric-small health-good">Excellent</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sensor Status Panel -->
+    <div class="control-panel">
+      <div class="panel-header">
+        <h2><i class="fas fa-satellite-dish"></i> Sensor Monitoring</h2>
+        <div class="panel-actions">
+          <button class="refresh-btn" onclick="refreshSensors()">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+      <div class="sensor-grid">
+        <div class="sensor-card" id="ldrSensorCard">
+          <div class="sensor-header">
+            <div class="sensor-icon">
+              <i class="fas fa-sun"></i>
+            </div>
+            <div class="sensor-info">
+              <h3>Light Sensor (LDR)</h3>
+              <span class="sensor-type">Conditional Monitoring</span>
+            </div>
+            <div class="sensor-status-badge" id="ldrStatusBadge">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="sensor-reading">
+            <div class="reading-value" id="ldrValue">--</div>
+            <div class="reading-unit">lux</div>
+          </div>
+          <div class="sensor-description" id="ldrDescription">Enable "LDR Auto Light" to start monitoring</div>
+          <div class="sensor-chart">
+            <div class="chart-bar" id="ldrChart"></div>
+          </div>
+        </div>
+
+        <div class="sensor-card" id="pirSensorCard">
+          <div class="sensor-header">
+            <div class="sensor-icon">
+              <i class="fas fa-walking"></i>
+            </div>
+            <div class="sensor-info">
+              <h3>Motion Sensor (PIR)</h3>
+              <span class="sensor-type">Conditional Monitoring</span>
+            </div>
+            <div class="sensor-status-badge" id="pirStatusBadge">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="sensor-reading">
+            <div class="reading-value" id="pirValue">--</div>
+            <div class="reading-unit">state</div>
+          </div>
+          <div class="sensor-description" id="pirDescription">Enable "Motion Light" to start monitoring</div>
+          <div class="motion-indicator" id="motionIndicator">
+            <div class="motion-wave"></div>
+            <div class="motion-wave"></div>
+            <div class="motion-wave"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Device Control Panel -->
+    <div class="control-panel">
+      <div class="panel-header">
+        <h2><i class="fas fa-sliders-h"></i> Device Control</h2>
+        <div class="panel-actions">
+          <button class="emergency-btn" id="allOffBtn">
+            <i class="fas fa-power-off"></i>
+            Emergency Off
+          </button>
+        </div>
+      </div>
+      <div class="device-grid">
+        <div class="device-card smart-device">
+          <div class="device-header">
+            <div class="device-icon">
+              <i class="fas fa-lightbulb"></i>
+            </div>
+            <div class="device-info">
+              <h3>LDR Auto Light</h3>
+              <span class="device-type">Automatic Lighting</span>
+            </div>
+            <div class="device-status" id="deviceStatus1">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="device-controls">
+            <div class="status-display">
+              <span class="status-label">Status:</span>
+              <span class="status-value" id="status1">Loading...</span>
+            </div>
+            <button class="control-btn" id="btn1">
+              <i class="fas fa-power-off"></i>
+              Toggle
+            </button>
+          </div>
+          <div class="device-automation">
+            <i class="fas fa-magic"></i>
+            <span>Light-sensitive automation</span>
+          </div>
+        </div>
+
+        <div class="device-card smart-device">
+          <div class="device-header">
+            <div class="device-icon">
+              <i class="fas fa-street-view"></i>
+            </div>
+            <div class="device-info">
+              <h3>Motion Light</h3>
+              <span class="device-type">Motion Detection</span>
+            </div>
+            <div class="device-status" id="deviceStatus2">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="device-controls">
+            <div class="status-display">
+              <span class="status-label">Status:</span>
+              <span class="status-value" id="status2">Loading...</span>
+            </div>
+            <button class="control-btn" id="btn2">
+              <i class="fas fa-power-off"></i>
+              Toggle
+            </button>
+          </div>
+          <div class="device-automation">
+            <i class="fas fa-magic"></i>
+            <span>Motion-triggered automation</span>
+          </div>
+        </div>
+
+        <div class="device-card">
+          <div class="device-header">
+            <div class="device-icon">
+              <i class="fas fa-plug"></i>
+            </div>
+            <div class="device-info">
+              <h3>Device 3</h3>
+              <span class="device-type">Manual Control</span>
+            </div>
+            <div class="device-status" id="deviceStatus3">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="device-controls">
+            <div class="status-display">
+              <span class="status-label">Status:</span>
+              <span class="status-value" id="status3">Loading...</span>
+            </div>
+            <button class="control-btn" id="btn3">
+              <i class="fas fa-power-off"></i>
+              Toggle
+            </button>
+          </div>
+        </div>
+
+        <div class="device-card">
+          <div class="device-header">
+            <div class="device-icon">
+              <i class="fas fa-plug"></i>
+            </div>
+            <div class="device-info">
+              <h3>Device 4</h3>
+              <span class="device-type">Manual Control</span>
+            </div>
+            <div class="device-status" id="deviceStatus4">
+              <i class="fas fa-circle"></i>
+            </div>
+          </div>
+          <div class="device-controls">
+            <div class="status-display">
+              <span class="status-label">Status:</span>
+              <span class="status-value" id="status4">Loading...</span>
+            </div>
+            <button class="control-btn" id="btn4">
+              <i class="fas fa-power-off"></i>
+              Toggle
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Notifications Panel -->
-    <div class="notification-panel">
-      <h3>🔔 Recent Notifications</h3>
-      <div id="notificationsList">
-        <div class="notification-item">
-          <div>System initialized. Monitoring sensors...</div>
-          <div class="notification-time">Just now</div>
+    <div class="control-panel">
+      <div class="panel-header">
+        <h2><i class="fas fa-bell"></i> System Notifications</h2>
+        <div class="panel-actions">
+          <button class="clear-btn" onclick="clearNotifications()">
+            <i class="fas fa-trash"></i>
+            Clear
+          </button>
+        </div>
+      </div>
+      <div class="notifications-container">
+        <div id="notificationsList" class="notifications-list">
+          <div class="notification-item welcome">
+            <div class="notification-content">
+              <div class="notification-icon">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="notification-text">
+                <div class="notification-title">System Initialized</div>
+                <div class="notification-message">Smart home automation is now online and monitoring sensors</div>
+              </div>
+            </div>
+            <div class="notification-time">Just now</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="relay-container">
-      <div class="relay-card">
-        <h2>Relay 1 (LDR Light)</h2>
-        <p>Status: <span id="status1">Loading...</span></p>
-        <button id="btn1">Toggle</button>
-      </div>
-
-      <div class="relay-card">
-        <h2>Relay 2 (Motion Light)</h2>
-        <p>Status: <span id="status2">Loading...</span></p>
-        <button id="btn2">Toggle</button>
-      </div>
-
-      <div class="relay-card">
-        <h2>Relay 3</h2>
-        <p>Status: <span id="status3">Loading...</span></p>
-        <button id="btn3">Toggle</button>
-      </div>
-
-      <div class="relay-card">
-        <h2>Relay 4</h2>
-        <p>Status: <span id="status4">Loading...</span></p>
-        <button id="btn4">Toggle</button>
-      </div>
+    <!-- User Actions -->
+    <div class="user-actions">
+      <button id="logoutBtn" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i>
+        Sign Out
+      </button>
     </div>
-
-    <button id="allOffBtn">All OFF</button>
-    <button id="logoutBtn">Logout</button>
   </div>
 
-  <footer>
-    Created by Team-X with ❤️
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <p>
+        <i class="fas fa-code"></i>
+        Developed with <i class="fas fa-heart"></i> by <strong>Team-X</strong>
+      </p>
+      <p class="footer-tech">
+        <span>ESP8266</span> • <span>Firebase</span> • <span>IoT</span>
+      </p>
+    </div>
   </footer>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Connecting to your smart home...</p>
+    </div>
+  </div>
 
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
